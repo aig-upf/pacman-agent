@@ -1,0 +1,4 @@
+[submodule "pacman-contest"]
+	path = pacman-contest
+	url = https://github.com/jsego/pacman-contest.git
+	branch = main
