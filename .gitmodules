@@ -1,3 +1,0 @@
-[submodule "pacman-contest"]
-	path = pacman-contest
-	url = git@github.com:jsego/pacman-contest.git
