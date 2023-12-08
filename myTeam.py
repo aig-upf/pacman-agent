@@ -57,7 +57,7 @@ def create_team(first_index, second_index, is_red,
 
 class ReflexCaptureAgent(CaptureAgent):
     """
-    A base class for reflex agents that choose score-maximizing actions
+    A base class for reflex agents that choose score-maximizing action22s
     """
 
     def __init__(self, index, time_for_computing=.1):
@@ -142,23 +142,89 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
   but it is by no means the best or only way to build an offensive agent.
   """
 
+    def __init__(self, index, time_for_computing=0.1):
+        super().__init__(index, time_for_computing)
+        self.initial_food = None
+        self.ate_food = False
+        self.mode = 'offense'  # Possible modes: 'offense', 'defense', 'search_food'
+
     def get_features(self, game_state, action):
         features = util.Counter()
         successor = self.get_successor(game_state, action)
         food_list = self.get_food(successor).as_list()
-        features['successor_score'] = -len(food_list)  # self.getScore(successor)
+        my_state = successor.get_agent_state(self.index)
 
-        # Compute distance to the nearest food
+        
+        if self.mode == 'offense':
+            # When on offense mode, focus on getting food and returning home
+            features['successor_score'] = -len(food_list)
 
-        if len(food_list) > 0:  # This should always be True,  but better safe than sorry
+            if not self.ate_food:
+                # Choose the closest food in enemy territory
+                my_pos = successor.get_agent_state(self.index).get_position()
+                if len(food_list) > 0:
+                    min_distance_food = min([self.get_maze_distance(my_pos, food) for food in food_list])
+                    features['distance_to_food'] = min_distance_food
+
+            else:
+                # After eating food, prioritize returning to own territory
+                features['distance_to_home'] = self.get_maze_distance(my_state.get_position(), self.start)
+
+        elif self.mode == 'defense':
+            # In defense mode, join the defensive agent
+            # and prioritize returning to own territory
+            features['distance_to_home'] = self.get_maze_distance(my_state.get_position(), self.start)
+
+        elif self.mode == 'search_food':
+            # When searching for food (in case of draw or loss), find the closest food
+            features['successor_score'] = -len(food_list)
             my_pos = successor.get_agent_state(self.index).get_position()
-            min_distance = min([self.get_maze_distance(my_pos, food) for food in food_list])
-            features['distance_to_food'] = min_distance
+            if len(food_list) > 0:
+                min_distance_food = min([self.get_maze_distance(my_pos, food) for food in food_list])
+                features['distance_to_food'] = min_distance_food
+
+        if self.get_score(game_state) > 0:
+            # When leading in score, return the get_features of the defensive agent
+            self.mode = 'defense'
+            return DefensiveReflexAgent.get_features(self, game_state, action)
+
         return features
+    
 
     def get_weights(self, game_state, action):
-        return {'successor_score': 100, 'distance_to_food': -1}
+        # when leading in score, return the get_weights of the defensive agent
+        if self.get_score(game_state) > 0:
+            return DefensiveReflexAgent.get_weights(self, game_state, action)
+        if self.mode == 'offense':
+            return {'successor_score': 100, 'distance_to_food': -1, 'distance_to_home': -2}
+        elif self.mode == 'defense':
+            return {'distance_to_home': -2}
+        elif self.mode == 'search_food':
+            return {'successor_score': 100, 'distance_to_food': -1}
 
+    def choose_action(self, game_state):
+        if self.initial_food is None:
+            # Save the initial food count to keep track of eating one food
+            self.initial_food = len(self.get_food(game_state).as_list())
+
+        if self.mode == 'offense':
+            # Check if we are not leading, then stay on offense mode
+            if self.get_score(game_state) <= 0 and self.red:
+                self.mode = 'offense'
+            elif self.get_score(game_state) >= 0 and self.blue:
+                self.mode = 'offense'
+            # Check if already ate one food, then switch to defense mode
+            current_food = len(self.get_food(game_state).as_list())
+            if current_food < self.initial_food:
+                self.ate_food = True
+                self.mode = 'defense'
+
+        actions = game_state.get_legal_actions(self.index)
+        values = [self.evaluate(game_state, a) for a in actions]
+        max_value = max(values)
+        best_actions = [a for a, v in zip(actions, values) if v == max_value]
+
+        return random.choice(best_actions)
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
     """
@@ -195,3 +261,4 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 
     def get_weights(self, game_state, action):
         return {'num_invaders': -1000, 'on_defense': 100, 'invader_distance': -10, 'stop': -100, 'reverse': -2}
+    
