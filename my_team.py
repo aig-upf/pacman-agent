@@ -1,18 +1,4 @@
-# baselineTeam.py
-# ---------------
-# Licensing Information:  You are free to use or extend these projects for
-# educational purposes provided that (1) you do not distribute or publish
-# solutions, (2) you retain this notice, and (3) you provide clear
-# attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
-# 
-# Attribution Information: The Pacman AI projects were developed at UC Berkeley.
-# The core projects and autograders were primarily created by John DeNero
-# (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
-# Student side autograding was added by Brad Miller, Nick Hay, and
-# Pieter Abbeel (pabbeel@cs.berkeley.edu).
-
-
-# baselineTeam.py
+# my_team.py
 # ---------------
 # Licensing Information: Please do not distribute or publish solutions to this
 # project. You are free to use and extend these projects for educational
@@ -23,9 +9,9 @@
 import random
 import contest.util as util
 
-from contest.captureAgents import CaptureAgent
+from contest.capture_agents import CaptureAgent
 from contest.game import Directions
-from contest.util import nearestPoint
+from contest.util import nearest_point
 
 
 #################
@@ -43,7 +29,7 @@ def create_team(first_index, second_index, is_red,
     As a potentially helpful development aid, this function can take
     additional string-valued keyword arguments ("first" and "second" are
     such arguments in the case of this function), which will come from
-    the --redOpts and --blueOpts command-line arguments to capture.py.
+    the --red_opts and --blue_opts command-line arguments to capture.py.
     For the nightly contest, however, your team will be created without
     any extra arguments, so you should make sure that the default
     behavior is what you want for the nightly contest.
@@ -104,7 +90,7 @@ class ReflexCaptureAgent(CaptureAgent):
         """
         successor = game_state.generate_successor(self.index, action)
         pos = successor.get_agent_state(self.index).get_position()
-        if pos != nearestPoint(pos):
+        if pos != nearest_point(pos):
             # Only half a grid position was covered
             return successor.generate_successor(self.index, action)
         else:
