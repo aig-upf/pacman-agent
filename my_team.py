@@ -1,4 +1,18 @@
-# my_team.py
+# baseline_team.py
+# ---------------
+# Licensing Information:  You are free to use or extend these projects for
+# educational purposes provided that (1) you do not distribute or publish
+# solutions, (2) you retain this notice, and (3) you provide clear
+# attribution to UC Berkeley, including a link to http://ai.berkeley.edu.
+#
+# Attribution Information: The Pacman AI projects were developed at UC Berkeley.
+# The core projects and autograders were primarily created by John DeNero
+# (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
+# Student side autograding was added by Brad Miller, Nick Hay, and
+# Pieter Abbeel (pabbeel@cs.berkeley.edu).
+
+
+# baseline_team.py
 # ---------------
 # Licensing Information: Please do not distribute or publish solutions to this
 # project. You are free to use and extend these projects for educational
@@ -7,12 +21,12 @@
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
 
 import random
-import contest.util as util
 
-from contest.capture_agents import CaptureAgent
-from contest.game import Directions
-from contest.util import nearest_point
-
+import util
+from capture_agents import CaptureAgent
+from game import Directions
+from util import nearest_point
+import pickle
 
 #################
 # Team creation #
@@ -29,7 +43,7 @@ def create_team(first_index, second_index, is_red,
     As a potentially helpful development aid, this function can take
     additional string-valued keyword arguments ("first" and "second" are
     such arguments in the case of this function), which will come from
-    the --red_opts and --blue_opts command-line arguments to capture.py.
+    the --redOpts and --blueOpts command-line arguments to capture.py.
     For the nightly contest, however, your team will be created without
     any extra arguments, so you should make sure that the default
     behavior is what you want for the nightly contest.
@@ -41,143 +55,158 @@ def create_team(first_index, second_index, is_red,
 # Agents #
 ##########
 
-class ReflexCaptureAgent(CaptureAgent):
+class QLearningAgent(CaptureAgent):
+
     """
-    A base class for reflex agents that choose score-maximizing actions
+    Our agent that uses QLearning to find the best possible move
     """
 
     def __init__(self, index, time_for_computing=.1):
         super().__init__(index, time_for_computing)
         self.start = None
+        self.q_values = util.Counter()
 
     def register_initial_state(self, game_state):
         self.start = game_state.get_agent_position(self.index)
         CaptureAgent.register_initial_state(self, game_state)
 
-    def choose_action(self, game_state):
+        """
+        #load q-values from pickle file if they exist
+        try:
+            with open("q_values.pkl", "rb") as f:
+                self.q_values = pickle.load(f)
+        except FileNotFoundError:
+            self.q_values = util.Counter()
+        """
+
+
+    def getQValue(self, game_state, action):
+        return self.q_values[(game_state,action)]
+
+    def computeValue(self, game_state):
+        """
+          Returns max_action Q(state,action)
+          where the max is over legal actions.  Note that if
+          there are no legal actions, which is the case at the
+          terminal state, you should return a value of 0.0.
+        """
+        "*** YOUR CODE HERE ***"
+        # Get all legal actions for the given state.
+        legal_actions = self.getLegalActions(game_state)
+
+        # If there are no legal actions return 0
+        if len(legal_actions) == 0:
+            return 0.0
+
+        # The value is just the max of all q values.
+        value = float("-inf")
+        for action in legal_actions:
+            # Compute the q value for each action
+            q_value = self.getQValue(game_state, action)
+            # Update the value to be the max of the q values.
+            value = max(value, q_value)
+
+        return value
+
+    def find_best_action(self, game_state):
         """
         Picks among the actions with the highest Q(s,a).
         """
-        actions = game_state.get_legal_actions(self.index)
 
         # You can profile your evaluation time by uncommenting these lines
         # start = time.time()
-        values = [self.evaluate(game_state, a) for a in actions]
         # print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
 
-        max_value = max(values)
-        best_actions = [a for a, v in zip(actions, values) if v == max_value]
 
-        food_left = len(self.get_food(game_state).as_list())
+        legal_actions = game_state.get_legal_actions(self.index)
 
-        if food_left <= 2:
-            best_dist = 9999
-            best_action = None
-            for action in actions:
-                successor = self.get_successor(game_state, action)
-                pos2 = successor.get_agent_position(self.index)
-                dist = self.get_maze_distance(self.start, pos2)
-                if dist < best_dist:
-                    best_action = action
-                    best_dist = dist
+        best_action = None
+        max_q_value = float("-inf")
+
+        # If it's a terminal state.
+        if len(legal_actions) == 0:
             return best_action
 
-        return random.choice(best_actions)
+        for action in legal_actions:
+            q_value = self.getQValue(game_state, action)
+            # If the q_value is higher than current max-q, update max-q and best action.
+            if q_value > max_q_value:
+                max_q_value = q_value
+                best_action = action
+            elif q_value == max_q_value:
+                best_action = random.choice([best_action, action])
+                # If the action chosen is action and not best_action,
+                # update the max_q_value to be the q_value of action
+                if action == best_action:
+                    max_q_value = q_value
 
-    def get_successor(self, game_state, action):
-        """
-        Finds the next successor which is a grid position (location tuple).
-        """
-        successor = game_state.generate_successor(self.index, action)
-        pos = successor.get_agent_state(self.index).get_position()
-        if pos != nearest_point(pos):
-            # Only half a grid position was covered
-            return successor.generate_successor(self.index, action)
+        return best_action
+
+    def choose_best_action(self, game_state):
+        # Pick Action
+        legalActions = self.getLegalActions(game_state)
+        action = None
+        "*** YOUR CODE HERE ***"
+        # Check for terminal state.
+        if len(legalActions) == 0:
+            return action  # At this moment action = None
+
+        prob = self.epsilon  # Probability to take a random action
+        if util.flipCoin(prob):  # If True, take a random action
+            action = random.choice(legalActions)
         else:
-            return successor
+            action = self.getPolicy(game_state)
 
-    def evaluate(self, game_state, action):
+        return action
+
+    def update(self, game_state, action, next_game_state, reward):
         """
-        Computes a linear combination of features and feature weights
+          The parent class calls this to observe a
+          state = action => nextState and reward transition.
+          You should do your Q-Value update here
+
+          NOTE: You should never call this function,
+          it will be called on your behalf
         """
-        features = self.get_features(game_state, action)
-        weights = self.get_weights(game_state, action)
-        return features * weights
+        "*** YOUR CODE HERE ***"
+        q_value = self.getQValue(game_state, action)
+        alpha = self.alpha
+        discount = self.discount
+        # The value of the next state = argmax of the Q-values of the next state.
+        value_next_state = self.computeValue(next_game_state)
 
-    def get_features(self, game_state, action):
-        """
-        Returns a counter of features for the state
-        """
-        features = util.Counter()
-        successor = self.get_successor(game_state, action)
-        features['successor_score'] = self.get_score(successor)
-        return features
+        # Update the q value in the dictionary q_values. Just the formula from the slides CS188.
+        self.q_values[game_state, action] = ((1 - alpha) * q_value) + \
+                                        (alpha * (reward + (discount * value_next_state)))
 
-    def get_weights(self, game_state, action):
-        """
-        Normally, weights do not depend on the game state.  They can be either
-        a counter or a dictionary.
-        """
-        return {'successor_score': 1.0}
-
-
-class OffensiveReflexAgent(ReflexCaptureAgent):
-    """
-  A reflex agent that seeks food. This is an agent
-  we give you to get an idea of what an offensive agent might look like,
-  but it is by no means the best or only way to build an offensive agent.
-  """
-
-    def get_features(self, game_state, action):
-        features = util.Counter()
-        successor = self.get_successor(game_state, action)
-        food_list = self.get_food(successor).as_list()
-        features['successor_score'] = -len(food_list)  # self.getScore(successor)
-
-        # Compute distance to the nearest food
-
-        if len(food_list) > 0:  # This should always be True,  but better safe than sorry
-            my_pos = successor.get_agent_state(self.index).get_position()
-            min_distance = min([self.get_maze_distance(my_pos, food) for food in food_list])
-            features['distance_to_food'] = min_distance
-        return features
-
-    def get_weights(self, game_state, action):
-        return {'successor_score': 100, 'distance_to_food': -1}
-
-
-class DefensiveReflexAgent(ReflexCaptureAgent):
-    """
-    A reflex agent that keeps its side Pacman-free. Again,
-    this is to give you an idea of what a defensive agent
-    could be like.  It is not the best or only way to make
-    such an agent.
+class OffensiveQLearningAgent(QLearningAgent):
     """
 
-    def get_features(self, game_state, action):
-        features = util.Counter()
-        successor = self.get_successor(game_state, action)
+    """
 
-        my_state = successor.get_agent_state(self.index)
-        my_pos = my_state.get_position()
+    def __init__(self, epsilon=0.05, gamma=0.8, alpha=0.2, numTraining=0, **args):
 
-        # Computes whether we're on defense (1) or offense (0)
-        features['on_defense'] = 1
-        if my_state.is_pacman: features['on_defense'] = 0
+        args['epsilon'] = epsilon
+        args['gamma'] = gamma
+        args['alpha'] = alpha
+        args['numTraining'] = numTraining
+        self.index = 0  # This is always Pacman
+        QLearningAgent.__init__(self, **args)
 
-        # Computes distance to invaders we can see
-        enemies = [successor.get_agent_state(i) for i in self.get_opponents(successor)]
-        invaders = [a for a in enemies if a.is_pacman and a.get_position() is not None]
-        features['num_invaders'] = len(invaders)
-        if len(invaders) > 0:
-            dists = [self.get_maze_distance(my_pos, a.get_position()) for a in invaders]
-            features['invader_distance'] = min(dists)
+    def getAction(self, game_state):
+        """
+        Simply calls the getAction method of QLearningAgent and then
+        informs parent of action for Pacman.  Do not change or remove this
+        method.
+        """
+        action = QLearningAgent.getAction(self,game_state)
+        self.doAction(game_state,action)
+        return action
 
-        if action == Directions.STOP: features['stop'] = 1
-        rev = Directions.REVERSE[game_state.get_agent_state(self.index).configuration.direction]
-        if action == rev: features['reverse'] = 1
+    """
+    def final(self, game_state):
 
-        return features
-
-    def get_weights(self, game_state, action):
-        return {'num_invaders': -1000, 'on_defense': 100, 'invader_distance': -10, 'stop': -100, 'reverse': -2}
+        # Saves Q-values at the end of every game
+        with open("q_values.pkl", "wb") as f:
+            pickle.dump(dict(self.q_values), f)
+    """
