@@ -3,12 +3,13 @@
 A template for coding a pacman agent.
 
 ## Setting up the environment
-1. Copy or clone the code from this framework to create your Pacman Agent, e.g., `git clone git@github.com:aig-upf/pacman-agent.git`
-2. Go into pacman-agent folder, `cd pacman-agent/`
-3. Run `git submodule update --init --remote` to pull the last pacman-contest
-4. Create a virtual environment, e.g., `python3.8 -m venv venv`
-5. Activate the virtual environment with `source venv/bin/activate`
-6. Go to the pacman-contest folder and install the requirements:
+1. Copy the code from this framework to create your Pacman Agent.
+2. Clone your own pacman-agent repository (e.g., `git clone git@github.com:Username/pacman-agent.git`)
+3. Go into pacman-agent folder, `cd pacman-agent/`
+4. Run `git submodule update --init --remote` to pull the last pacman-contest
+5. Create a virtual environment (e.g., `python3.8 -m venv venv`)
+6. Activate the virtual environment with `source venv/bin/activate`
+7. Go to the pacman-contest folder and install the requirements:
     - `cd pacman-contest/`
     - `pip install -r requirements.txt`
     - `pip install -e .`
